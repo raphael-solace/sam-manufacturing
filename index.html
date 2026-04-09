@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dark Shift — Autonomous Factory Simulation</title>
+<meta name="description" content="Gamified digital twin of a near-dark manufacturing plant powered by Solace Agent Mesh. Playable in the browser.">
+<link rel="stylesheet" href="css/tokens.css">
+<style>
+  body { overflow-x: hidden; }
+
+  /* Hero */
+  .hero {
+    min-height: 100dvh; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center;
+    padding: var(--sp-8); position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 30% 50%, var(--accent-glow), transparent 60%),
+      radial-gradient(ellipse at 70% 30%, rgba(59,130,246,0.1), transparent 50%);
+    pointer-events: none;
+  }
+  .hero h1 {
+    font-size: var(--fs-3xl); font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--info));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: var(--sp-4);
+    position: relative;
+  }
+  .hero .tagline {
+    font-size: var(--fs-lg); color: var(--fg-2);
+    max-width: 600px; line-height: 1.6; margin-bottom: var(--sp-8);
+    position: relative;
+  }
+  .hero .cta-row {
+    display: flex; gap: var(--sp-4); flex-wrap: wrap;
+    justify-content: center; position: relative;
+  }
+
+  /* Animated grid background */
+  .grid-bg {
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  }
+  .grid-bg svg { width: 100%; height: 100%; opacity: 0.06; }
+
+  /* Features */
+  .features {
+    padding: var(--sp-12) var(--sp-8);
+    max-width: 960px; margin: 0 auto;
+  }
+  .features h2 {
+    font-size: var(--fs-xl); font-weight: 700;
+    text-align: center; margin-bottom: var(--sp-8);
+  }
+  .feature-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--sp-6);
+  }
+  .feature-card {
+    background: var(--bg-card); border: 1px solid var(--bg-3);
+    border-radius: var(--radius-lg); padding: var(--sp-6);
+    transition: var(--transition);
+  }
+  .feature-card:hover { border-color: var(--accent); box-shadow: var(--shadow-glow); }
+  .feature-card h3 { font-size: var(--fs-md); font-weight: 600; margin-bottom: var(--sp-2); }
+  .feature-card p { font-size: var(--fs-sm); color: var(--fg-2); line-height: 1.6; }
+  .feature-icon {
+    width: 40px; height: 40px; border-radius: var(--radius);
+    background: var(--bg-2); display: grid; place-items: center;
+    margin-bottom: var(--sp-3); color: var(--accent);
+  }
+
+  /* How it works */
+  .how-section {
+    padding: var(--sp-12) var(--sp-8);
+    background: var(--bg-1); border-top: 1px solid var(--bg-2);
+    border-bottom: 1px solid var(--bg-2);
+  }
+  .how-section h2 {
+    font-size: var(--fs-xl); font-weight: 700;
+    text-align: center; margin-bottom: var(--sp-2);
+  }
+  .how-section .sub {
+    text-align: center; color: var(--fg-3);
+    font-size: var(--fs-sm); margin-bottom: var(--sp-8);
+  }
+  .steps {
+    max-width: 700px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: var(--sp-6);
+  }
+  .step {
+    display: flex; gap: var(--sp-4); align-items: flex-start;
+  }
+  .step-num {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: var(--bg-0);
+    display: grid; place-items: center; font-weight: 700;
+    font-size: var(--fs-sm); flex-shrink: 0;
+  }
+  .step-body h3 { font-size: var(--fs-md); font-weight: 600; margin-bottom: var(--sp-1); }
+  .step-body p { font-size: var(--fs-sm); color: var(--fg-2); line-height: 1.5; }
+
+  /* Footer */
+  footer {
+    padding: var(--sp-8); text-align: center;
+    color: var(--fg-3); font-size: var(--fs-xs);
+  }
+  footer a { color: var(--accent); }
+
+  /* Nav */
+  .top-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    padding: var(--sp-3) var(--sp-6);
+    display: flex; justify-content: space-between; align-items: center;
+    background: rgba(10,14,23,0.8); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--bg-2);
+  }
+  .top-nav .logo { font-weight: 700; font-size: var(--fs-md); color: var(--accent); }
+  .top-nav .nav-links { display: flex; gap: var(--sp-4); }
+  .top-nav .nav-links a { color: var(--fg-2); font-size: var(--fs-sm); transition: var(--transition); }
+  .top-nav .nav-links a:hover { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="top-nav">
+  <span class="logo">Dark Shift</span>
+  <div class="nav-links">
+    <a href="game.html">Play</a>
+    <a href="docs.html">Architecture</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="grid-bg">
+    <svg><defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" stroke-width="0.5"/>
+    </pattern></defs><rect width="100%" height="100%" fill="url(#grid)"/></svg>
+  </div>
+  <h1>Dark Shift</h1>
+  <p class="tagline">
+    A gamified digital twin of a near-dark manufacturing plant powered by a simulated
+    <strong style="color:var(--fg-0);">Solace Agent Mesh</strong>. You are the plant GM.
+    Chaos events strike. Agents propose. You decide.
+  </p>
+  <div class="cta-row">
+    <a href="game.html" class="btn btn-primary btn-lg">Start Night Shift</a>
+    <a href="docs.html" class="btn btn-secondary btn-lg">How It Works</a>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features">
+  <h2>What Makes Dark Shift Different</h2>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg>
+      </div>
+      <h3>Solace Agent Mesh</h3>
+      <p>Event-driven architecture with pub/sub backbone, orchestrator, and 5+ domain agents that react to chaos in real-time.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+      </div>
+      <h3>Chaos Cards</h3>
+      <p>12 disruption scenarios — supplier delays, equipment failures, demand surges. Each ripples through the entire factory floor.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </div>
+      <h3>Priority Dial</h3>
+      <p>Shift between Speed, Margin, Quality, and Green modes. Each choice instantly changes how every agent behaves.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+      </div>
+      <h3>Live KPIs</h3>
+      <p>Track output, OTIF, margin, defect rate, energy, and carbon in real-time. Every decision moves the needle.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+      </div>
+      <h3>Swappable Scenarios</h3>
+      <p>The bike factory is just one config file. Swap it for semiconductors, pharma, or any manufacturing line.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </div>
+      <h3>Zero Setup</h3>
+      <p>Runs entirely in the browser. No server, no install. Open the HTML and play. Share a link and your audience is in.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section">
+  <h2>Game Loop</h2>
+  <p class="sub">Each session is 3-5 minutes. Endlessly replayable.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Factory hums</h3>
+        <p>Stations run, AMRs zip, units flow through the line. Agents are quiet. You watch the KPIs.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Chaos strikes</h3>
+        <p>A card flips. Supplier delay. Weld defect spike. Equipment failure. The event publishes to the agent mesh.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Agents propose</h3>
+        <p>The orchestrator fans out to domain agents. Each proposes a fix with trade-offs. You pick one or approve all.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h3>Factory adapts</h3>
+        <p>Stations recover (or don't). KPIs shift. Your score reflects every decision's ripple effect.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h3>Shift ends</h3>
+        <p>After 5 minutes you get a grade and a shareable score. A+ Factory Lord — or back to training.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>Dark Shift — Powered by <a href="https://solace.com" target="_blank" rel="noopener">Solace</a> Agent Mesh (simulated)</p>
+  <p style="margin-top:var(--sp-2);">Open source. Single-file deployable. <a href="docs.html">View architecture</a></p>
+</footer>
+
+</body>
+</html>

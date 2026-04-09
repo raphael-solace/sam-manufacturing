@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dark Shift — Solace Agent Mesh Architecture</title>
+<meta name="description" content="How the Solace Agent Mesh powers the Dark Shift factory simulation">
+<link rel="stylesheet" href="css/tokens.css">
+<style>
+  body { overflow-x: hidden; }
+
+  .top-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    padding: var(--sp-3) var(--sp-6);
+    display: flex; justify-content: space-between; align-items: center;
+    background: rgba(10,14,23,0.8); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--bg-2);
+  }
+  .top-nav .logo { font-weight: 700; font-size: var(--fs-md); color: var(--accent); }
+  .top-nav .nav-links { display: flex; gap: var(--sp-4); }
+  .top-nav .nav-links a { color: var(--fg-2); font-size: var(--fs-sm); transition: var(--transition); }
+  .top-nav .nav-links a:hover { color: var(--accent); text-decoration: none; }
+
+  .docs-container {
+    max-width: 800px; margin: 0 auto;
+    padding: 80px var(--sp-6) var(--sp-12);
+  }
+
+  .docs-container h1 {
+    font-size: var(--fs-2xl); font-weight: 800; margin-bottom: var(--sp-4);
+    background: linear-gradient(135deg, var(--accent), var(--info));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .docs-container h2 {
+    font-size: var(--fs-xl); font-weight: 700;
+    margin-top: var(--sp-12); margin-bottom: var(--sp-4);
+    padding-top: var(--sp-4); border-top: 1px solid var(--bg-2);
+  }
+  .docs-container h3 {
+    font-size: var(--fs-lg); font-weight: 600;
+    margin-top: var(--sp-6); margin-bottom: var(--sp-2);
+    color: var(--accent);
+  }
+  .docs-container p, .docs-container li {
+    font-size: var(--fs-md); color: var(--fg-1);
+    line-height: 1.7; margin-bottom: var(--sp-3);
+  }
+  .docs-container ul { padding-left: var(--sp-6); margin-bottom: var(--sp-4); }
+  .docs-container li { margin-bottom: var(--sp-2); }
+  .docs-container code {
+    font-family: var(--font-mono); font-size: var(--fs-sm);
+    background: var(--bg-2); padding: 2px 6px; border-radius: 4px;
+  }
+  .docs-container pre {
+    background: var(--bg-card); border: 1px solid var(--bg-3);
+    border-radius: var(--radius-lg); padding: var(--sp-4);
+    overflow-x: auto; margin-bottom: var(--sp-4);
+    font-family: var(--font-mono); font-size: var(--fs-sm);
+    color: var(--fg-1); line-height: 1.6;
+  }
+
+  /* Mesh diagram */
+  .mesh-diagram {
+    background: var(--bg-card); border: 1px solid var(--bg-3);
+    border-radius: var(--radius-lg); padding: var(--sp-4);
+    margin: var(--sp-6) 0; text-align: center;
+  }
+  .mesh-diagram canvas { max-width: 100%; }
+
+  /* Component cards */
+  .component-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--sp-4); margin: var(--sp-4) 0;
+  }
+  .component-card {
+    background: var(--bg-2); border-radius: var(--radius);
+    padding: var(--sp-4); border-left: 3px solid var(--accent);
+  }
+  .component-card h4 { font-size: var(--fs-sm); font-weight: 600; margin-bottom: var(--sp-1); }
+  .component-card p { font-size: var(--fs-xs); color: var(--fg-2); line-height: 1.5; margin-bottom: 0; }
+
+  .cta-box {
+    background: var(--bg-card); border: 1px solid var(--accent);
+    border-radius: var(--radius-lg); padding: var(--sp-6);
+    text-align: center; margin-top: var(--sp-8);
+  }
+  .cta-box h3 { color: var(--fg-0); margin-bottom: var(--sp-3); }
+  .cta-box p { color: var(--fg-2); margin-bottom: var(--sp-4); }
+
+  footer {
+    padding: var(--sp-8); text-align: center;
+    color: var(--fg-3); font-size: var(--fs-xs);
+    border-top: 1px solid var(--bg-2); margin-top: var(--sp-12);
+  }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="top-nav">
+  <a href="index.html" class="logo" style="text-decoration:none;">Dark Shift</a>
+  <div class="nav-links">
+    <a href="game.html">Play</a>
+    <a href="docs.html">Architecture</a>
+  </div>
+</nav>
+
+<div class="docs-container">
+
+<h1>Solace Agent Mesh Architecture</h1>
+<p>
+  Dark Shift simulates a full <strong>Solace Agent Mesh</strong> — the event-driven orchestration layer
+  that lets autonomous agents collaborate to run a manufacturing plant with minimal human intervention.
+  Here's how every component maps to the simulation.
+</p>
+
+<!-- Live Mesh Diagram -->
+<div class="mesh-diagram">
+  <canvas id="mesh-canvas" width="900" height="600"></canvas>
+</div>
+
+<h2>Core Components</h2>
+
+<div class="component-grid">
+  <div class="component-card">
+    <h4>Event Backbone</h4>
+    <p>Pub/sub messaging layer. Every chaos event, sensor reading, and agent response flows as a topic message.</p>
+  </div>
+  <div class="component-card">
+    <h4>Orchestrator</h4>
+    <p>Receives chaos events, decomposes them, and fans out to the right domain agents in parallel.</p>
+  </div>
+  <div class="component-card">
+    <h4>Domain Agents</h4>
+    <p>Supply, Planner, Quality, Maintenance, Logistics — each proposes structured actions with impact scores.</p>
+  </div>
+  <div class="component-card">
+    <h4>Human Gateway</h4>
+    <p>The player's interface. When agents can't agree or stakes are high, the human GM makes the call.</p>
+  </div>
+</div>
+
+<h2>Event Flow</h2>
+
+<h3>1. Chaos Event Published</h3>
+<p>
+  A disruption occurs — supplier delay, equipment failure, demand surge. The event publishes to
+  <code>factory/chaos/{type}</code> on the event backbone.
+</p>
+
+<h3>2. Orchestrator Subscribes</h3>
+<p>
+  The orchestrator subscribes to <code>factory/chaos/*</code>. On receipt, it identifies which
+  domain agents are relevant and fans out requests to <code>factory/agent/{name}/request</code>.
+</p>
+
+<h3>3. Agents Respond</h3>
+<p>
+  Each agent evaluates the chaos in context of its domain, current factory state, and the active
+  priority mode (Speed/Margin/Quality/Green). They publish structured responses to
+  <code>factory/agent/{name}/response</code>:
+</p>
+<pre>{
+  "agent": "supply",
+  "action": "Reroute to alt supplier",
+  "impact": {
+    "cost": +2000,
+    "delay": -1,
+    "output": 0
+  },
+  "confidence": 0.85
+}</pre>
+
+<h3>4. Human Gateway Decision</h3>
+<p>
+  The player sees all proposals with trade-offs and picks one — or approves all. This decision
+  publishes to <code>factory/gateway/decision</code> and the mesh executes the chosen action.
+</p>
+
+<h3>5. Factory Adapts</h3>
+<p>
+  Stations update their throughput, KPIs shift, AMRs reroute. The event backbone carries
+  telemetry updates on <code>factory/cell/*/telemetry</code> so every component stays in sync.
+</p>
+
+<h2>Topic Hierarchy</h2>
+<pre>factory/
+  chaos/{event-type}          # Chaos events (supplier-delay, defect-spike, etc.)
+  agent/{name}/request        # Orchestrator → Agent
+  agent/{name}/response       # Agent → Orchestrator
+  gateway/decision            # Human → Mesh
+  cell/{station}/telemetry    # Station health & throughput
+  supply/eta                  # Supplier ETA updates
+  kpi/{metric}                # Real-time KPI stream</pre>
+
+<h2>Swappable Scenarios</h2>
+<p>
+  The entire factory theme — stations, chaos cards, agents, KPIs, grades — lives in a single
+  JavaScript config file (<code>js/scenarios/bikes.js</code>). To create a new scenario:
+</p>
+<ul>
+  <li>Copy <code>js/scenarios/_template.js</code></li>
+  <li>Fill in your stations, chaos cards, agent responses, and mesh topology</li>
+  <li>Change one import line in <code>game.html</code></li>
+</ul>
+<p>
+  The engine, renderer, and UI are completely scenario-agnostic. The same game loop runs
+  a bike factory, a semiconductor fab, or a pharmaceutical plant.
+</p>
+
+<div class="cta-box">
+  <h3>Try It Live</h3>
+  <p>Experience the agent mesh in action. 5 minutes. Endlessly replayable.</p>
+  <a href="game.html" class="btn btn-primary btn-lg">Start Night Shift</a>
+</div>
+
+</div>
+
+<footer>
+  <p>Dark Shift — Powered by <a href="https://solace.com" target="_blank" rel="noopener">Solace</a> Agent Mesh (simulated)</p>
+</footer>
+
+<!-- Render mesh diagram -->
+<script type="module">
+  import scenario from './js/scenarios/bikes.js';
+
+  const canvas = document.getElementById('mesh-canvas');
+  const ctx = canvas.getContext('2d');
+  const w = 900, h = 600;
+
+  function draw() {
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    const bg = isDark ? '#0a0e17' : '#f8fafc';
+    const fg = isDark ? '#f1f5f9' : '#0f172a';
+    const fg2 = isDark ? '#94a3b8' : '#64748b';
+    const line = isDark ? '#334155' : '#cbd5e1';
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    const nodes = scenario.meshNodes || [];
+    const edges = scenario.meshEdges || [];
+    const topics = scenario.meshTopics || [];
+
+    edges.forEach(([fromId, toId]) => {
+      const from = nodes.find(n => n.id === fromId);
+      const to = nodes.find(n => n.id === toId);
+      if (!from || !to) return;
+      ctx.save();
+      ctx.strokeStyle = line; ctx.lineWidth = 2; ctx.globalAlpha = 0.6;
+      ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
+      const t = (Date.now() % 2000) / 2000;
+      ctx.fillStyle = from.color; ctx.globalAlpha = 1 - t;
+      ctx.beginPath();
+      ctx.arc(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+
+    nodes.forEach(n => {
+      ctx.save();
+      ctx.shadowColor = n.color; ctx.shadowBlur = 20;
+      ctx.fillStyle = n.color; ctx.globalAlpha = 0.2;
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.size + 8, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1; ctx.shadowBlur = 10;
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.size, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0; ctx.fillStyle = fg;
+      ctx.font = '12px Inter, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(n.label, n.x, n.y + n.size + 20);
+      ctx.restore();
+    });
+
+    ctx.fillStyle = fg2; ctx.font = '10px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+    topics.forEach((t, i) => {
+      const spacing = w / (topics.length + 1);
+      ctx.fillText(t, spacing * (i + 1), 130);
+    });
+
+    ctx.fillStyle = fg; ctx.font = 'bold 16px Inter, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Solace Agent Mesh Architecture', 450, 560);
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+</script>
+</body>
+</html>

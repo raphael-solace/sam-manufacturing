@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dark Shift: Autonomous Bike Factory</title>
+<meta name="description" content="Gamified digital twin of a near-dark manufacturing plant powered by Solace Agent Mesh">
+<link rel="stylesheet" href="css/tokens.css">
+</head>
+<body class="game-page">
+
+<!-- INTRO SCREEN -->
+<div id="intro-screen" class="game-screen visible">
+  <div>
+    <h1 id="intro-title">Dark Shift</h1>
+    <p class="subtitle" id="intro-subtitle">Autonomous Bike Factory</p>
+    <p id="intro-desc" style="color: var(--fg-3); margin-bottom: 32px; max-width: 420px; line-height: 1.6; font-size: var(--fs-sm);">
+      You are the plant GM during a night shift. The Solace Agent Mesh handles 90% autonomously — but chaos events force your hand. Survive 5 minutes. Make bikes. Ship on time.
+    </p>
+    <button class="btn btn-primary btn-lg" onclick="startGame()">Start Night Shift</button>
+  </div>
+</div>
+
+<!-- GAME OVER SCREEN -->
+<div id="gameover-screen" class="game-screen">
+  <div>
+    <h1>Shift Complete</h1>
+    <div class="final-grade" id="final-grade">A+</div>
+    <p style="color: var(--fg-2); margin-bottom: 8px;" id="final-title">Factory Lord</p>
+    <div class="final-stats" id="final-stats"></div>
+    <div style="display:flex;gap:12px;justify-content:center;margin-top:24px;">
+      <button class="btn btn-primary" onclick="startGame()">Play Again</button>
+      <button class="btn btn-secondary" onclick="shareScore()">Share Score</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" style="display:none;">
+  <!-- LEFT SIDEBAR -->
+  <nav id="sidebar">
+    <button class="sidebar-btn" title="Mesh View" onclick="toggleMesh()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><path d="m4.93 4.93 2.83 2.83m8.48 8.48 2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"/></svg>
+    </button>
+    <button class="sidebar-btn" title="Event Log" onclick="toggleLog()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+      <span class="badge" id="log-badge" style="display:none;">0</span>
+    </button>
+    <button class="sidebar-btn" title="Draw Chaos Card" onclick="drawChaosCard()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+    </button>
+    <div style="flex:1;"></div>
+    <button class="sidebar-btn" id="sound-btn" title="Toggle Sound" onclick="toggleSound()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14"/></svg>
+    </button>
+    <button class="sidebar-btn" title="Theme" onclick="toggleTheme()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    </button>
+  </nav>
+
+  <!-- FACTORY CANVAS -->
+  <div id="factory-area">
+    <canvas id="factory-canvas"></canvas>
+    <div class="factory-hud">
+      <div class="hud-pill"><span class="dot green"></span> <span id="hud-online">8</span> Online</div>
+      <div class="hud-pill"><span class="dot yellow"></span> <span id="hud-warning">0</span> Warning</div>
+      <div class="hud-pill"><span class="dot red"></span> <span id="hud-down">0</span> Down</div>
+    </div>
+    <div id="timer-display">05:00</div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="right-panel">
+    <div class="panel-section" id="chaos-section">
+      <div class="panel-title">Chaos Event</div>
+      <div id="chaos-card-slot">
+        <p style="color:var(--fg-3); font-size:var(--fs-sm); text-align:center; padding: 32px 0;">
+          No active event<br><span style="font-size:var(--fs-xs);">Draw a card or wait for auto-draw</span>
+        </p>
+      </div>
+    </div>
+    <div class="panel-section" id="proposals-section" style="display:none;">
+      <div class="panel-title">Agent Proposals</div>
+      <div id="proposals-slot"></div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="btn btn-primary btn-sm" onclick="approveAll()">Approve All</button>
+        <button class="btn btn-secondary btn-sm" onclick="dismissProposals()">Dismiss</button>
+      </div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-title">Priority Mode</div>
+      <div id="priority-dial">
+        <button class="dial-btn active" data-mode="speed" onclick="setPriority('speed')">
+          <span class="dial-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>Speed
+        </button>
+        <button class="dial-btn" data-mode="margin" onclick="setPriority('margin')">
+          <span class="dial-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></span>Margin
+        </button>
+        <button class="dial-btn" data-mode="quality" onclick="setPriority('quality')">
+          <span class="dial-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></span>Quality
+        </button>
+        <button class="dial-btn" data-mode="green" onclick="setPriority('green')">
+          <span class="dial-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 22c1-6 5-12 10-14M22 2c-6 1-12 5-14 10"/><path d="M8 22c1-4 3-8 6-10"/></svg></span>Green
+        </button>
+      </div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-title">Chaos Deck</div>
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <span style="font-size:var(--fs-sm); color:var(--fg-2);"><span id="deck-count">12</span> cards remaining</span>
+        <button class="btn btn-secondary btn-sm" onclick="drawChaosCard()">Draw Card</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM DASHBOARD -->
+  <div id="dashboard">
+    <div class="kpi">
+      <span class="kpi-label" id="kpi-unit-label">Bikes Produced</span>
+      <span class="kpi-value" id="kpi-units">0</span>
+    </div>
+    <div class="kpi-sep"></div>
+    <div class="kpi"><span class="kpi-label">OTIF %</span><span class="kpi-value" id="kpi-otif">100</span></div>
+    <div class="kpi-sep"></div>
+    <div class="kpi"><span class="kpi-label">Margin</span><span class="kpi-value" id="kpi-margin">$0</span></div>
+    <div class="kpi-sep"></div>
+    <div class="kpi"><span class="kpi-label">Defect Rate</span><span class="kpi-value" id="kpi-defect">0.0%</span></div>
+    <div class="kpi-sep"></div>
+    <div class="kpi"><span class="kpi-label">Energy kWh/unit</span><span class="kpi-value" id="kpi-energy">12.0</span></div>
+    <div class="kpi-sep"></div>
+    <div class="kpi"><span class="kpi-label">Carbon kg/unit</span><span class="kpi-value" id="kpi-carbon">3.2</span></div>
+    <div class="kpi-sep"></div>
+    <div class="kpi" style="flex:1;"></div>
+    <div class="kpi" style="text-align:right;">
+      <span class="kpi-label">Score</span>
+      <span class="kpi-value" id="kpi-score" style="color:var(--accent);">0</span>
+    </div>
+  </div>
+</div>
+
+<!-- EVENT LOG -->
+<div id="event-log">
+  <div class="log-header">Event Stream <span style="float:right;cursor:pointer;" onclick="toggleLog()">x</span></div>
+  <div class="log-body" id="log-body"></div>
+</div>
+
+<!-- MESH OVERLAY -->
+<div id="mesh-overlay" onclick="if(event.target===this)toggleMesh()">
+  <canvas id="mesh-canvas" width="900" height="600"></canvas>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     BOOTSTRAP — swap scenario import to change theme
+     ═══════════════════════════════════════════ -->
+<script type="module">
+  // ─── Swap this import to change the entire game theme ───
+  import scenario from './js/scenarios/bikes.js';
+
+  import { loadScenario } from './js/engine.js';
+  import { initUI } from './js/ui.js';
+
+  // Load scenario into engine, then init UI
+  loadScenario(scenario);
+
+  // Set intro screen text from scenario
+  document.getElementById('intro-title').textContent = 'Dark Shift';
+  document.getElementById('intro-subtitle').textContent = scenario.name;
+  document.getElementById('intro-desc').textContent = scenario.description + ' The Solace Agent Mesh handles 90% autonomously — but chaos events force your hand. Survive ' + Math.floor(scenario.gameDuration / 60) + ' minutes.';
+
+  initUI();
+</script>
+</body>
+</html>
