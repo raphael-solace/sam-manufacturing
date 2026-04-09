@@ -3,80 +3,580 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dark Shift — Autonomous Factory Simulation</title>
-<link rel="stylesheet" href="css/tokens.css">
+<title>Dark Shift — Bike Factory</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;font-size:15px;-webkit-font-smoothing:antialiased}
+body{background:#0b1120;color:#e2e8f0;min-height:100dvh}
+a{color:#00c896}
+
+/* Layout */
+.shell{display:grid;grid-template-columns:1fr 400px;grid-template-rows:auto 1fr;height:100dvh}
+.topbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid #1e293b;background:#0f1729}
+.topbar .logo{font-weight:700;font-size:1rem}
+.topbar .meta{font-size:.8rem;color:#64748b;display:flex;gap:16px;align-items:center}
+.topbar .timer{font-family:'SF Mono',SFMono-Regular,Consolas,monospace;color:#00c896;font-weight:600;font-size:.9rem}
+
+/* Dashboard */
+.dashboard{grid-column:1;grid-row:2;overflow-y:auto;padding:20px}
+
+/* Chat */
+.chat-col{grid-column:2;grid-row:2;display:flex;flex-direction:column;border-left:1px solid #1e293b;background:#0f1729}
+.chat-header{padding:12px 16px;border-bottom:1px solid #1e293b;font-weight:600;font-size:.85rem;color:#94a3b8}
+.chat-messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+.chat-input-row{padding:12px 16px;border-top:1px solid #1e293b;display:flex;gap:8px}
+.chat-input-row input{flex:1;background:#1e293b;border:1px solid #334155;border-radius:6px;padding:8px 12px;color:#e2e8f0;font:inherit;font-size:.85rem;outline:none}
+.chat-input-row input:focus{border-color:#00c896}
+.chat-input-row button{background:#00c896;color:#000;border:none;border-radius:6px;padding:8px 16px;font-weight:600;font-size:.85rem;cursor:pointer}
+.chat-input-row button:hover{background:#00a87d}
+
+/* Messages */
+.msg{font-size:.85rem;line-height:1.55;padding:8px 12px;border-radius:8px;max-width:95%}
+.msg.system{background:#1e293b;color:#94a3b8;font-size:.8rem;text-align:center;align-self:center;border-radius:12px}
+.msg.agent{background:#0c2d24;border:1px solid #134e3a;align-self:flex-start}
+.msg .agent-name{font-size:.7rem;font-weight:600;color:#00c896;text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px}
+.msg.user{background:#1e293b;align-self:flex-end}
+.msg.chaos{background:#2d1215;border:1px solid #4c1d24;align-self:center;text-align:center}
+.msg.chaos .chaos-title{font-weight:700;color:#ef4444;margin-bottom:2px}
+
+/* Action buttons in chat */
+.actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.actions button{background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:5px 12px;font-size:.8rem;cursor:pointer}
+.actions button:hover{border-color:#00c896;color:#00c896}
+
+/* KPI cards */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+.kpi-card{background:#141c2e;border:1px solid #1e293b;border-radius:8px;padding:14px 16px}
+.kpi-card .label{font-size:.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.kpi-card .value{font-size:1.4rem;font-weight:700;font-family:'SF Mono',SFMono-Regular,Consolas,monospace}
+.kpi-card .value.good{color:#22c55e}
+.kpi-card .value.warn{color:#f59e0b}
+.kpi-card .value.bad{color:#ef4444}
+.kpi-card .value.accent{color:#00c896}
+
+/* Factory overview */
+.section-title{font-size:.85rem;font-weight:600;color:#94a3b8;margin-bottom:12px;text-transform:uppercase;letter-spacing:.04em}
+.station-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:24px}
+.station{background:#141c2e;border:1px solid #1e293b;border-radius:6px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-size:.85rem}
+.station .name{color:#cbd5e1}
+.station .status{font-size:.75rem;font-weight:600;padding:2px 8px;border-radius:4px}
+.station .status.ok{background:#052e16;color:#22c55e}
+.station .status.warning{background:#422006;color:#f59e0b}
+.station .status.down{background:#450a0a;color:#ef4444}
+
+/* Priority bar */
+.priority-bar{display:flex;gap:6px;margin-bottom:24px}
+.priority-bar button{flex:1;padding:8px;background:#141c2e;border:1px solid #1e293b;border-radius:6px;color:#94a3b8;font-size:.8rem;font-weight:500;cursor:pointer}
+.priority-bar button:hover{border-color:#64748b}
+.priority-bar button.active{border-color:#00c896;color:#00c896;background:#0c2d24}
+
+/* Event log */
+.log-section{margin-bottom:24px}
+.log-entry{font-size:.8rem;padding:4px 0;color:#94a3b8;border-bottom:1px solid #1e293b;display:flex;gap:10px}
+.log-entry .time{color:#475569;font-family:'SF Mono',SFMono-Regular,Consolas,monospace;min-width:44px}
+.log-entry .topic{color:#00c896;min-width:80px}
+
+/* Intro / Game over */
+.overlay{position:fixed;inset:0;background:#0b1120;z-index:100;display:flex;justify-content:center;align-items:center;flex-direction:column;text-align:center}
+.overlay.hidden{display:none}
+.overlay h1{font-size:2rem;font-weight:700;margin-bottom:8px}
+.overlay .sub{color:#94a3b8;font-size:.9rem;max-width:440px;line-height:1.6;margin-bottom:28px}
+.overlay .btn{display:inline-block;background:#00c896;color:#000;border:none;border-radius:6px;padding:10px 28px;font-size:.9rem;font-weight:600;cursor:pointer;text-decoration:none}
+.overlay .btn:hover{background:#00a87d}
+.overlay .btn-secondary{background:#1e293b;color:#94a3b8;border:1px solid #334155;margin-left:8px}
+.overlay .btn-secondary:hover{background:#334155;color:#e2e8f0}
+.final-grade{font-size:3.5rem;font-weight:800;color:#00c896;margin:16px 0}
+.final-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0;max-width:400px}
+.final-stat{text-align:center}
+.final-stat .v{font-size:1.2rem;font-weight:700;font-family:'SF Mono',SFMono-Regular,Consolas,monospace}
+.final-stat .l{font-size:.7rem;color:#64748b;margin-top:2px}
+
+/* About section in dashboard */
+.about{background:#141c2e;border:1px solid #1e293b;border-radius:8px;padding:16px 20px;margin-bottom:24px;font-size:.85rem;color:#94a3b8;line-height:1.6}
+.about strong{color:#e2e8f0}
+
+/* Responsive */
+@media(max-width:800px){
+  .shell{grid-template-columns:1fr;grid-template-rows:auto 1fr 1fr}
+  .chat-col{grid-column:1;grid-row:3;border-left:none;border-top:1px solid #1e293b;max-height:50vh}
+}
+</style>
 </head>
 <body>
 
-<nav class="nav">
-  <a href="index.html" class="nav-logo">Dark Shift</a>
-  <div class="nav-links">
-    <a href="game.html">Play</a>
-    <a href="docs.html">Architecture</a>
-  </div>
-</nav>
-
-<main class="container" style="padding-top:64px; padding-bottom:64px;">
-
-  <h1 style="font-size:2.5rem; font-weight:800; margin-bottom:12px;">Dark Shift</h1>
-  <p style="color:var(--fg-m); font-size:1.125rem; max-width:540px; margin-bottom:32px;">
-    A factory simulation powered by a simulated Solace Agent Mesh. You run a night shift.
-    Chaos events strike. Agents propose fixes. You decide.
+<!-- ═══ INTRO ═══ -->
+<div class="overlay" id="intro">
+  <h1>Dark Shift</h1>
+  <p class="sub">
+    You're the night-shift GM at a vertically integrated bike factory.
+    The Solace Agent Mesh runs most things autonomously — but chaos events
+    need your call. Manage 9 stations across 5 minutes.
   </p>
-  <div style="display:flex; gap:12px; margin-bottom:64px;">
-    <a href="game.html" class="btn btn-primary">Start Night Shift</a>
-    <a href="docs.html" class="btn btn-secondary">How It Works</a>
+  <div>
+    <button class="btn" onclick="startGame()">Start Night Shift</button>
+    <a href="#" class="btn btn-secondary" onclick="event.preventDefault();document.getElementById('intro-about').style.display=document.getElementById('intro-about').style.display==='none'?'block':'none'">About</a>
+  </div>
+  <div id="intro-about" style="display:none;margin-top:24px;max-width:500px;text-align:left;font-size:.85rem;color:#94a3b8;line-height:1.6;">
+    <p style="margin-bottom:12px;"><strong style="color:#e2e8f0;">The factory line:</strong> Tube Laser → Robotic Weld → CNC → Powder Coat → Wheel Build → Final Assembly → AMR Fleet → Warehouse → Loading Docks</p>
+    <p style="margin-bottom:12px;"><strong style="color:#e2e8f0;">Solace Agent Mesh:</strong> An event backbone connects an orchestrator to 5 domain agents (Supply, Planner, Quality, Maintenance, Logistics). When chaos hits, agents propose fixes through pub/sub topics. You approve or override.</p>
+    <p><strong style="color:#e2e8f0;">Priority modes:</strong> Speed (max output), Margin (cut costs), Quality (zero defects), Green (min energy/carbon). Each changes agent behavior.</p>
+  </div>
+</div>
+
+<!-- ═══ GAME OVER ═══ -->
+<div class="overlay hidden" id="gameover">
+  <h1>Shift Complete</h1>
+  <div class="final-grade" id="go-grade">A+</div>
+  <p style="color:#94a3b8;margin-bottom:8px;" id="go-title">Factory Lord</p>
+  <div class="final-stats" id="go-stats"></div>
+  <div style="margin-top:16px;">
+    <button class="btn" onclick="startGame()">Play Again</button>
+    <button class="btn btn-secondary" onclick="copyScore()">Copy Score</button>
+  </div>
+</div>
+
+<!-- ═══ MAIN SHELL ═══ -->
+<div class="shell" id="app" style="display:none;">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <span class="logo">Dark Shift</span>
+    <div class="meta">
+      <span><span id="hud-g" style="color:#22c55e">●</span> <span id="hud-gn">9</span></span>
+      <span><span id="hud-y" style="color:#f59e0b">●</span> <span id="hud-yn">0</span></span>
+      <span><span id="hud-r" style="color:#ef4444">●</span> <span id="hud-rn">0</span></span>
+      <span style="color:#334155">|</span>
+      <span class="timer" id="timer">05:00</span>
+    </div>
   </div>
 
-  <hr>
+  <!-- Dashboard -->
+  <div class="dashboard" id="dashboard">
 
-  <h2 style="font-size:1.25rem; font-weight:700; margin-bottom:24px;">How it works</h2>
+    <div class="about" id="situation">
+      <strong>Situation:</strong> Night shift at a European bike factory. 9 stations running,
+      5 AMRs moving materials. The Solace Agent Mesh handles routine orchestration.
+      Chaos events will test your judgment. Use the chat to interact with agents.
+    </div>
 
-  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:24px; margin-bottom:48px;">
-    <div>
-      <h3 style="font-size:0.9375rem; font-weight:600; margin-bottom:4px;">Agent Mesh</h3>
-      <p style="font-size:0.875rem; color:var(--fg-m);">Event-driven pub/sub backbone with an orchestrator and 5 domain agents that react to disruptions in real-time.</p>
+    <!-- KPIs -->
+    <div class="section-title">Key Metrics</div>
+    <div class="kpi-row">
+      <div class="kpi-card"><div class="label">Bikes Produced</div><div class="value accent" id="k-bikes">0</div></div>
+      <div class="kpi-card"><div class="label">OTIF %</div><div class="value good" id="k-otif">100</div></div>
+      <div class="kpi-card"><div class="label">Margin</div><div class="value" id="k-margin">$0</div></div>
+      <div class="kpi-card"><div class="label">Defect Rate</div><div class="value good" id="k-defect">0.5%</div></div>
+      <div class="kpi-card"><div class="label">kWh / Bike</div><div class="value" id="k-energy">12.0</div></div>
+      <div class="kpi-card"><div class="label">CO₂ / Bike</div><div class="value" id="k-carbon">3.2</div></div>
+      <div class="kpi-card"><div class="label">Score</div><div class="value accent" id="k-score">0</div></div>
     </div>
-    <div>
-      <h3 style="font-size:0.9375rem; font-weight:600; margin-bottom:4px;">Chaos Cards</h3>
-      <p style="font-size:0.875rem; color:var(--fg-m);">12 disruption scenarios — supplier delays, equipment failures, demand surges. Each ripples through the factory.</p>
+
+    <!-- Priority -->
+    <div class="section-title">Priority Mode</div>
+    <div class="priority-bar" id="priority-bar">
+      <button class="active" data-m="speed" onclick="setPriority('speed')">Speed</button>
+      <button data-m="margin" onclick="setPriority('margin')">Margin</button>
+      <button data-m="quality" onclick="setPriority('quality')">Quality</button>
+      <button data-m="green" onclick="setPriority('green')">Green</button>
     </div>
-    <div>
-      <h3 style="font-size:0.9375rem; font-weight:600; margin-bottom:4px;">Priority Dial</h3>
-      <p style="font-size:0.875rem; color:var(--fg-m);">Shift between Speed, Margin, Quality, and Green modes. Each choice changes how every agent behaves.</p>
-    </div>
-    <div>
-      <h3 style="font-size:0.9375rem; font-weight:600; margin-bottom:4px;">Live KPIs</h3>
-      <p style="font-size:0.875rem; color:var(--fg-m);">Track output, OTIF, margin, defect rate, energy, and carbon. Every decision moves the needle.</p>
-    </div>
-    <div>
-      <h3 style="font-size:0.9375rem; font-weight:600; margin-bottom:4px;">Swappable Scenarios</h3>
-      <p style="font-size:0.875rem; color:var(--fg-m);">The bike factory is one config file. Swap it for semiconductors, pharma, or any manufacturing line.</p>
-    </div>
-    <div>
-      <h3 style="font-size:0.9375rem; font-weight:600; margin-bottom:4px;">Zero Setup</h3>
-      <p style="font-size:0.875rem; color:var(--fg-m);">Runs entirely in the browser. No server, no install. Open the HTML and play.</p>
+
+    <!-- Stations -->
+    <div class="section-title">Factory Floor</div>
+    <div class="station-grid" id="stations"></div>
+
+    <!-- Event Log -->
+    <div class="section-title">Event Log</div>
+    <div class="log-section" id="log"></div>
+
+  </div>
+
+  <!-- Chat -->
+  <div class="chat-col">
+    <div class="chat-header">Agent Mesh Chat</div>
+    <div class="chat-messages" id="chat"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Ask an agent or type a command..." onkeydown="if(event.key==='Enter')sendChat()">
+      <button onclick="sendChat()">Send</button>
     </div>
   </div>
 
-  <hr>
+</div>
 
-  <h2 style="font-size:1.25rem; font-weight:700; margin-bottom:24px;">Game loop</h2>
+<script>
+// ═══════════════════════════════════════════════
+// SCENARIO DATA
+// ═══════════════════════════════════════════════
+const STATIONS = [
+  { id:'laser',     name:'Tube Laser' },
+  { id:'weld',      name:'Robotic Weld' },
+  { id:'cnc',       name:'CNC Machine' },
+  { id:'paint',     name:'Powder Coat' },
+  { id:'wheel',     name:'Wheel Build' },
+  { id:'assembly',  name:'Final Assembly' },
+  { id:'amr',       name:'AMR Fleet' },
+  { id:'warehouse', name:'Warehouse' },
+  { id:'docks',     name:'Loading Docks' },
+];
 
-  <ol style="color:var(--fg-m); font-size:0.875rem; padding-left:20px; max-width:540px; margin-bottom:48px;">
-    <li style="margin-bottom:12px;"><strong style="color:var(--fg);">Factory hums.</strong> Stations run, units flow through the line. Agents are quiet.</li>
-    <li style="margin-bottom:12px;"><strong style="color:var(--fg);">Chaos strikes.</strong> A card flips. Supplier delay. Weld defect. Equipment failure.</li>
-    <li style="margin-bottom:12px;"><strong style="color:var(--fg);">Agents propose.</strong> The orchestrator fans out. Each agent suggests a fix with trade-offs.</li>
-    <li style="margin-bottom:12px;"><strong style="color:var(--fg);">You decide.</strong> Pick one proposal, approve all, or dismiss. Your call.</li>
-    <li style="margin-bottom:12px;"><strong style="color:var(--fg);">Shift ends.</strong> After 5 minutes you get a grade. A+ Factory Lord — or back to training.</li>
-  </ol>
+const CHAOS = [
+  { title:'Battery Supplier Delay', desc:'Key battery supplier delayed +2 days. Assembly line at risk.', severity:'danger', affects:['assembly','warehouse'], agents:['supply','planner'] },
+  { title:'Weld Defect Spike', desc:'Defect rate on weld cell jumped to 8%. Quality hold triggered.', severity:'danger', affects:['weld'], agents:['quality','maintenance'] },
+  { title:'Energy Tariff x3', desc:'Grid operator spiked tariffs. Energy cost tripled this hour.', severity:'warn', affects:['laser','cnc','paint'], agents:['planner','supply'] },
+  { title:'Rush Order: Paris Dealer', desc:'200 premium bikes needed by Friday. 2x normal pace required.', severity:'info', affects:['assembly','docks'], agents:['planner','logistics'] },
+  { title:'AMR Collision', desc:'Two AMRs collided at intersection B. Fleet halted for safety.', severity:'danger', affects:['amr'], agents:['maintenance','logistics'] },
+  { title:'Paint Booth Overheat', desc:'Powder coat oven temp sensor reading 15% above safe limit.', severity:'warn', affects:['paint'], agents:['maintenance','quality'] },
+  { title:'Customs Hold', desc:'Carbon fiber shipment stuck at Rotterdam customs. ETA unknown.', severity:'warn', affects:['laser','warehouse'], agents:['supply','planner'] },
+  { title:'Shift Worker No-Show', desc:'Night shift operator absent. Manual inspection unmanned.', severity:'warn', affects:['assembly'], agents:['planner','quality'] },
+  { title:'Firmware Glitch: CNC', desc:'CNC controller reset mid-cycle. Calibration required.', severity:'danger', affects:['cnc'], agents:['maintenance','planner'] },
+  { title:'Demand Surge: E-Bikes', desc:'Flash sale triggered 3x e-bike orders. Line reconfiguration needed.', severity:'info', affects:['assembly','wheel','docks'], agents:['planner','logistics'] },
+  { title:'Coolant Leak: Laser', desc:'Laser cutter coolant pressure dropping. Shutdown in 10 min.', severity:'danger', affects:['laser'], agents:['maintenance','supply'] },
+  { title:'Sustainability Audit', desc:'Surprise auditor arriving. Carbon reporting needed ASAP.', severity:'info', affects:['paint','laser','cnc'], agents:['quality','planner'] },
+];
 
-  <hr>
+const AGENTS = {
+  supply: [
+    { action:'Reroute to alt supplier (+$2k, -1 day delay)', impact:{cost:2000,output:0.05} },
+    { action:'Negotiate expedited shipping (+$800)', impact:{cost:800} },
+    { action:'Pull from safety stock (no cost, stock -10%)', impact:{output:0.1} },
+  ],
+  planner: [
+    { action:'Resequence line — skip paint for 50 bikes (+20% output, -5% quality)', impact:{output:0.2,quality:-0.05} },
+    { action:'Split into two sub-batches (+10% output)', impact:{output:0.1,cost:200} },
+    { action:'Defer non-critical orders 24h (-5% OTIF)', impact:{otif:-5} },
+  ],
+  quality: [
+    { action:'Hold lot for full inspection (-15% output, +quality)', impact:{output:-0.15,quality:0.1} },
+    { action:'Statistical sampling — faster (-5% output)', impact:{output:-0.05,quality:0.03} },
+    { action:'Accept with rework tag (+$300)', impact:{quality:-0.02,cost:300} },
+  ],
+  maintenance: [
+    { action:'Emergency repair — 30 min downtime (-20% output, $1.5k)', impact:{output:-0.2,cost:1500} },
+    { action:'Hot-swap backup unit (-5% output, $3k)', impact:{output:-0.05,cost:3000} },
+    { action:'Schedule for next shift (deferred, 30% risk)', impact:{} },
+  ],
+  logistics: [
+    { action:'Reroute AMRs via corridor C (-5% speed)', impact:{output:-0.05,cost:200} },
+    { action:'Switch to manual transport (-15% speed)', impact:{output:-0.15,cost:600} },
+    { action:'Express dock assignment (+10% speed, $400)', impact:{output:0.1,cost:400} },
+  ],
+};
 
-  <p style="font-size:0.8125rem; color:var(--fg-d); margin-top:32px;">
-    Powered by <a href="https://solace.com" target="_blank">Solace</a> Agent Mesh (simulated). Open source.
-  </p>
+const PRIORITY = {
+  speed:   { prod:1.3, cost:1.0, qual:0.85, energy:1.1 },
+  margin:  { prod:0.9, cost:0.75, qual:1.0, energy:1.0 },
+  quality: { prod:0.8, cost:1.1, qual:1.2, energy:1.0 },
+  green:   { prod:0.85, cost:1.05, qual:1.0, energy:0.7 },
+};
 
-</main>
+const GRADES = [
+  [3000,'A+','Factory Lord'],[2500,'A','Master Operator'],[2000,'B+','Shift Lead'],
+  [1500,'B','Competent GM'],[1000,'C','Surviving'],[0,'D','Needs Training'],
+];
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let S = {};
+
+function freshState() {
+  return {
+    running:false, timeLeft:300, bikes:0, otif:100, margin:0,
+    defect:0.5, energy:12, carbon:3.2, score:0,
+    priority:'speed', prodMul:1, costMul:1, qualMul:1, energyMul:1,
+    stations: STATIONS.map(s => ({...s, status:'ok', throughput:1, alert:0})),
+    deck: [...CHAOS].sort(()=>Math.random()-0.5),
+    log:[], chaosTimer:0, pendingProposals:null, tickTimer:null,
+  };
+}
+
+// ═══════════════════════════════════════════════
+// DOM HELPERS
+// ═══════════════════════════════════════════════
+const $=id=>document.getElementById(id);
+
+function addChat(type, html) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + type;
+  d.innerHTML = html;
+  $('chat').appendChild(d);
+  $('chat').scrollTop = $('chat').scrollHeight;
+  return d;
+}
+
+function addLog(topic, msg) {
+  const elapsed = 300 - S.timeLeft;
+  const t = String(Math.floor(elapsed/60)).padStart(2,'0')+':'+String(Math.floor(elapsed%60)).padStart(2,'0');
+  S.log.push({t,topic,msg});
+  const el = document.createElement('div');
+  el.className = 'log-entry';
+  el.innerHTML = `<span class="time">${t}</span><span class="topic">${topic}</span><span>${msg}</span>`;
+  $('log').prepend(el);
+}
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+function renderStations() {
+  $('stations').innerHTML = S.stations.map(s =>
+    `<div class="station"><span class="name">${s.name}</span><span class="status ${s.status}">${s.status==='ok'?'Online':s.status==='warning'?'Warning':'Down'}</span></div>`
+  ).join('');
+}
+
+function renderKPIs() {
+  $('k-bikes').textContent = Math.floor(S.bikes);
+  $('k-otif').textContent = Math.round(S.otif);
+  $('k-otif').className = 'value '+(S.otif>=90?'good':S.otif>=70?'warn':'bad');
+  $('k-margin').textContent = '$'+Math.round(S.margin).toLocaleString();
+  $('k-defect').textContent = S.defect.toFixed(1)+'%';
+  $('k-defect').className = 'value '+(S.defect<2?'good':S.defect<5?'warn':'bad');
+  $('k-energy').textContent = S.energy.toFixed(1);
+  $('k-carbon').textContent = S.carbon.toFixed(1);
+  $('k-score').textContent = Math.round(S.score);
+}
+
+function renderHud() {
+  let g=0,y=0,r=0;
+  S.stations.forEach(s=>{if(s.status==='ok')g++;else if(s.status==='warning')y++;else r++;});
+  $('hud-gn').textContent=g; $('hud-yn').textContent=y; $('hud-rn').textContent=r;
+}
+
+function renderTimer() {
+  const m=Math.floor(S.timeLeft/60), s=Math.floor(S.timeLeft%60);
+  $('timer').textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+
+// ═══════════════════════════════════════════════
+// GAME LOGIC
+// ═══════════════════════════════════════════════
+function tick() {
+  if (!S.running) return;
+  const dt = 1; // 1 second per tick
+  S.timeLeft -= dt;
+  if (S.timeLeft <= 0) { S.timeLeft=0; endGame(); return; }
+
+  // Production
+  const avg = S.stations.reduce((a,s)=>a+s.throughput,0)/S.stations.length;
+  S.bikes += 0.15 * S.prodMul * avg * dt;
+  S.margin += 120 * S.costMul * (S.priority==='margin'?1.3:1) * 0.15 * avg * dt;
+
+  // Station recovery
+  S.stations.forEach(s=>{
+    if(s.alert>0){s.alert-=dt;if(s.alert<=0){s.status='ok';s.throughput=Math.min(1,s.throughput+0.3);}}
+  });
+
+  // KPI derivation
+  S.defect = Math.max(0.1, 5 - 4.5*S.qualMul + (1-avg)*3);
+  S.energy = Math.max(5, 12*S.energyMul);
+  const down = S.stations.filter(s=>s.status==='down').length;
+  if(down>0) S.otif = Math.max(0, S.otif - dt*down*0.5);
+
+  S.score = Math.round(S.bikes*10 + S.otif*5 + S.margin*0.01 + (100-S.defect*10)*2 - S.energy*2 - S.carbon*5);
+
+  // Auto chaos
+  S.chaosTimer += 1000;
+  if (S.chaosTimer >= 30000 + Math.random()*20000 && S.deck.length > 0) {
+    S.chaosTimer = 0;
+    drawChaos();
+  }
+
+  renderKPIs(); renderHud(); renderTimer(); renderStations();
+}
+
+function drawChaos() {
+  if (!S.running || S.deck.length===0) return;
+  const card = S.deck.pop();
+
+  // Affect stations
+  card.affects.forEach(id=>{
+    const st = S.stations.find(s=>s.id===id);
+    if(!st)return;
+    if(card.severity==='danger'){st.status='down';st.throughput=0.3;st.alert=15;}
+    else if(card.severity==='warn'){st.status='warning';st.throughput=0.6;st.alert=12;}
+    else{st.status='warning';st.throughput=0.8;st.alert=10;}
+  });
+
+  addLog('chaos', card.title);
+  addChat('chaos', `<div class="chaos-title">${card.title}</div>${card.desc}`);
+
+  // Agent proposals
+  const proposals = card.agents.map(aid=>{
+    const pool = AGENTS[aid]||AGENTS.planner;
+    return {agent:aid, ...pool[Math.floor(Math.random()*pool.length)]};
+  });
+  S.pendingProposals = proposals;
+
+  setTimeout(()=>{
+    if (!S.running) return;
+    addChat('system', 'Agents are responding...');
+    proposals.forEach((p,i)=>{
+      const msg = addChat('agent',
+        `<div class="agent-name">${p.agent} agent</div>${p.action}`
+      );
+    });
+    // Action buttons
+    const d = addChat('system','');
+    d.innerHTML = '<div class="actions">' +
+      proposals.map((_,i)=>`<button onclick="approveProposal(${i})">Approve ${proposals[i].agent}</button>`).join('') +
+      '<button onclick="approveAll()">Approve All</button>' +
+      '<button onclick="dismiss()">Dismiss</button></div>';
+  }, 800);
+
+  renderStations(); renderHud();
+}
+
+function applyImpact(imp) {
+  if(imp.output) S.prodMul = Math.max(0.2, S.prodMul + imp.output);
+  if(imp.cost) S.margin -= imp.cost;
+  if(imp.quality) S.qualMul = Math.max(0.5, S.qualMul + imp.quality);
+  if(imp.otif) S.otif = Math.max(0, Math.min(100, S.otif + imp.otif));
+  if(imp.energy) S.energyMul = Math.max(0.3, S.energyMul + imp.energy);
+}
+
+function healStations(amt) {
+  S.stations.forEach(s=>{
+    if(s.status!=='ok'){
+      s.throughput=Math.min(1,s.throughput+amt);
+      s.status = s.throughput>0.7?'ok':s.throughput>0.4?'warning':'down';
+    }
+  });
+}
+
+window.approveProposal = function(i) {
+  if(!S.pendingProposals) return;
+  const p = S.pendingProposals[i];
+  applyImpact(p.impact);
+  healStations(0.3);
+  addLog('agent/'+p.agent, p.action);
+  addChat('system', `Approved: ${p.agent} agent — ${p.action.split('(')[0].trim()}`);
+  S.pendingProposals = null;
+  removeActionButtons();
+  renderStations(); renderKPIs();
+};
+
+window.approveAll = function() {
+  if(!S.pendingProposals) return;
+  S.pendingProposals.forEach(p=>{ applyImpact(p.impact); addLog('agent/'+p.agent, p.action); });
+  healStations(0.2);
+  addChat('system', 'All proposals approved.');
+  S.pendingProposals = null;
+  removeActionButtons();
+  renderStations(); renderKPIs();
+};
+
+window.dismiss = function() {
+  S.pendingProposals = null;
+  addChat('system', 'Proposals dismissed. Stations will recover on their own.');
+  removeActionButtons();
+};
+
+function removeActionButtons() {
+  document.querySelectorAll('.actions').forEach(el=>el.remove());
+}
+
+// ═══════════════════════════════════════════════
+// PRIORITY
+// ═══════════════════════════════════════════════
+window.setPriority = function(mode) {
+  S.priority = mode;
+  const p = PRIORITY[mode];
+  S.prodMul=p.prod; S.costMul=p.cost; S.qualMul=p.qual; S.energyMul=p.energy;
+  document.querySelectorAll('.priority-bar button').forEach(b=>b.classList.toggle('active',b.dataset.m===mode));
+  addLog('priority', 'Mode → '+mode.toUpperCase());
+  addChat('system', `Priority set to <strong>${mode}</strong>.`);
+};
+
+// ═══════════════════════════════════════════════
+// CHAT INPUT
+// ═══════════════════════════════════════════════
+window.sendChat = function() {
+  const input = $('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addChat('user', text);
+
+  // Simple command parsing
+  const lower = text.toLowerCase();
+  if (lower==='draw'||lower==='chaos'||lower==='draw card') {
+    drawChaos();
+  } else if (lower.startsWith('priority ')||lower.startsWith('mode ')) {
+    const mode = lower.split(' ')[1];
+    if (PRIORITY[mode]) setPriority(mode);
+    else addChat('system','Unknown mode. Try: speed, margin, quality, green.');
+  } else if (lower==='status'||lower==='report') {
+    addChat('agent',
+      `<div class="agent-name">Orchestrator</div>` +
+      `Bikes: ${Math.floor(S.bikes)} | OTIF: ${Math.round(S.otif)}% | Margin: $${Math.round(S.margin).toLocaleString()} | Defects: ${S.defect.toFixed(1)}%<br>` +
+      `${S.stations.filter(s=>s.status!=='ok').length} stations degraded. ${S.deck.length} chaos cards remaining.`
+    );
+  } else if (lower==='help') {
+    addChat('system',
+      '<strong>Commands:</strong><br>' +
+      '• <strong>draw</strong> — draw a chaos card<br>' +
+      '• <strong>priority [speed|margin|quality|green]</strong> — change mode<br>' +
+      '• <strong>status</strong> — get a report from the orchestrator<br>' +
+      '• Or just type anything to talk to the mesh'
+    );
+  } else {
+    // Generic response from orchestrator
+    const responses = [
+      `Noted. The mesh is monitoring ${S.stations.filter(s=>s.status!=='ok').length} degraded stations.`,
+      `Understood. Current throughput is at ${Math.round(S.stations.reduce((a,s)=>a+s.throughput,0)/S.stations.length*100)}%.`,
+      `Acknowledged. ${S.deck.length} potential disruptions remain in the chaos deck.`,
+      `The ${S.priority} priority is holding. ${Math.floor(S.bikes)} bikes shipped so far.`,
+      `All agents are nominal. Score is ${Math.round(S.score)}.`,
+    ];
+    setTimeout(()=>{
+      addChat('agent', `<div class="agent-name">Orchestrator</div>${responses[Math.floor(Math.random()*responses.length)]}`);
+    }, 400);
+  }
+};
+
+// ═══════════════════════════════════════════════
+// GAME LIFECYCLE
+// ═══════════════════════════════════════════════
+window.startGame = function() {
+  S = freshState();
+  $('intro').classList.add('hidden');
+  $('gameover').classList.add('hidden');
+  $('app').style.display = 'grid';
+  $('chat').innerHTML = '';
+  $('log').innerHTML = '';
+
+  renderStations(); renderKPIs(); renderHud(); renderTimer();
+  document.querySelectorAll('.priority-bar button').forEach(b=>b.classList.toggle('active',b.dataset.m==='speed'));
+
+  addChat('system', 'Night shift started. 5 minutes on the clock. Type <strong>help</strong> for commands.');
+  addChat('agent', '<div class="agent-name">Orchestrator</div>All 9 stations online. Mesh is nominal. Awaiting first event.');
+  addLog('system', 'Night shift started');
+
+  S.running = true;
+  if(S.tickTimer) clearInterval(S.tickTimer);
+  S.tickTimer = setInterval(tick, 1000);
+};
+
+function endGame() {
+  S.running = false;
+  if(S.tickTimer) clearInterval(S.tickTimer);
+  let grade='D',title='Needs Training';
+  for(const[min,g,t] of GRADES){if(S.score>=min){grade=g;title=t;break;}}
+  $('go-grade').textContent=grade;
+  $('go-title').textContent=title;
+  $('go-stats').innerHTML=`
+    <div class="final-stat"><div class="v">${Math.floor(S.bikes)}</div><div class="l">Bikes</div></div>
+    <div class="final-stat"><div class="v">${Math.round(S.otif)}%</div><div class="l">OTIF</div></div>
+    <div class="final-stat"><div class="v">$${Math.round(S.margin).toLocaleString()}</div><div class="l">Margin</div></div>
+    <div class="final-stat"><div class="v">${S.defect.toFixed(1)}%</div><div class="l">Defects</div></div>
+    <div class="final-stat"><div class="v">${S.energy.toFixed(1)}</div><div class="l">kWh</div></div>
+    <div class="final-stat"><div class="v">${Math.round(S.score)}</div><div class="l">Score</div></div>`;
+  $('app').style.display='none';
+  $('gameover').classList.remove('hidden');
+}
+
+window.copyScore = function() {
+  const text = `Dark Shift: ${Math.round(S.score)} pts (${$('go-grade').textContent}) — ${Math.floor(S.bikes)} bikes, ${Math.round(S.otif)}% OTIF`;
+  navigator.clipboard.writeText(text);
+};
+</script>
 </body>
 </html>
