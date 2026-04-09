@@ -1,72 +1,56 @@
-// ─── UI Manager ─────────────────────────────
-// DOM manipulation for game UI. Scenario-agnostic.
+// UI Manager — DOM manipulation. Scenario-agnostic.
 
-import { state, setCallbacks, resetState, drawChaosCard as engineDrawCard, approveProposal as engineApprove, approveAll as engineApproveAll, dismissProposals as engineDismiss, setPriority as engineSetPriority, formatTime } from './engine.js';
+import { state, setCallbacks, resetState, drawChaosCard as engineDrawCard, approveProposal as engineApprove, approveAll as engineApproveAll, dismissProposals as engineDismiss, setPriority as engineSetPriority } from './engine.js';
 import { initRenderer, resizeCanvas, renderFrame, spawnAlert, reinitAMRs } from './renderer.js';
 import { initMesh, drawMesh } from './mesh.js';
-import { setSoundEnabled, isSoundEnabled, sfxApprove } from './audio.js';
+import { sfxApprove } from './audio.js';
 
-// ─── DOM refs ───────────────────────────────
 const el = id => document.getElementById(id);
 const qsa = sel => document.querySelectorAll(sel);
 
-// ─── Wire callbacks ─────────────────────────
 export function initUI() {
   setCallbacks({
-    onLog,
-    onKPIUpdate,
-    onHudUpdate,
+    onLog, onKPIUpdate, onHudUpdate,
     onChaosCard: renderChaosCard,
     onProposals: renderProposals,
-    onDismissProposals: dismissProposalsUI,
-    onGameOver,
-    onTimerUpdate,
+    onDismissProposals: () => { el('proposals-section').style.display = 'none'; },
+    onGameOver, onTimerUpdate,
     onToast: showToast,
-    onSpawnAlert: (sid) => spawnAlert(sid),
+    onSpawnAlert: sid => spawnAlert(sid),
   });
 
   initRenderer(el('factory-canvas'), el('factory-area'));
   initMesh(el('mesh-canvas'));
 
-  // Expose global handlers for onclick attributes in HTML
+  // Globals for onclick in HTML
   window.startGame = startGame;
   window.drawChaosCard = () => engineDrawCard();
   window.toggleMesh = toggleMesh;
   window.toggleLog = toggleLog;
-  window.toggleTheme = toggleTheme;
-  window.toggleSound = toggleSound;
-  window.setPriority = (m) => engineSetPriority(m);
-  window.approveProposal = (i) => engineApprove(i);
+  window.setPriority = m => { engineSetPriority(m); qsa('.priority-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === m)); };
+  window.approveProposal = i => engineApprove(i);
   window.approveAll = () => engineApproveAll();
   window.dismissProposals = () => engineDismiss();
   window.shareScore = shareScore;
 
-  // Keyboard shortcuts
   document.addEventListener('keydown', onKeyDown);
 }
 
-// ─── Game lifecycle ─────────────────────────
-export function startGame() {
+function startGame() {
   resetState();
-
-  // Reset UI
-  el('chaos-card-slot').innerHTML = `<p style="color:var(--fg-3); font-size:var(--fs-sm); text-align:center; padding: 32px 0;">
-    No active event<br><span style="font-size:var(--fs-xs);">Draw a card or wait for auto-draw</span></p>`;
+  el('chaos-card-slot').innerHTML = '<p style="color:var(--fg-d);font-size:0.8125rem;padding:16px 0;text-align:center;">No active event</p>';
   el('proposals-section').style.display = 'none';
   el('log-body').innerHTML = '';
-  el('log-badge').style.display = 'none';
   el('deck-count').textContent = state.chaosDeck.length;
-  qsa('.dial-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'speed'));
+  qsa('.priority-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'speed'));
 
-  // Update unit label from scenario
   const sc = state.scenario;
-  const unitLabel = el('kpi-unit-label');
-  if (unitLabel && sc) {
-    const plural = sc.unitNamePlural || 'Units';
-    unitLabel.textContent = plural.charAt(0).toUpperCase() + plural.slice(1) + ' Produced';
+  const label = el('kpi-unit-label');
+  if (label && sc) {
+    const p = sc.unitNamePlural || 'Units';
+    label.textContent = p.charAt(0).toUpperCase() + p.slice(1);
   }
 
-  // Show app
   el('intro-screen').classList.remove('visible');
   el('gameover-screen').classList.remove('visible');
   el('app').style.display = 'grid';
@@ -75,25 +59,8 @@ export function startGame() {
   reinitAMRs();
   state.running = true;
   state.animFrame = requestAnimationFrame(renderFrame);
-
-  onLog(null, 'system', `Night shift started. Survive ${Math.floor((sc?.gameDuration || 300) / 60)} minutes of chaos.`);
-  showToast('Night shift begins. Good luck, GM.');
 }
 
-// ─── Theme / Sound ──────────────────────────
-function toggleTheme() {
-  const html = document.documentElement;
-  const current = html.getAttribute('data-theme');
-  html.setAttribute('data-theme', current === 'light' ? 'dark' : 'light');
-}
-
-function toggleSound() {
-  const on = !isSoundEnabled();
-  setSoundEnabled(on);
-  el('sound-btn')?.classList.toggle('active', on);
-}
-
-// ─── Mesh / Log toggles ────────────────────
 function toggleMesh() {
   state.meshVisible = !state.meshVisible;
   el('mesh-overlay').classList.toggle('visible', state.meshVisible);
@@ -105,22 +72,15 @@ function toggleLog() {
   el('event-log').classList.toggle('visible', state.logVisible);
 }
 
-// ─── Callbacks ──────────────────────────────
 function onLog(time, topic, message) {
   if (!time) {
     const elapsed = (state.scenario?.gameDuration || 300) - state.timeLeft;
-    const min = Math.floor(elapsed / 60);
-    const sec = Math.floor(elapsed % 60);
-    time = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    time = String(Math.floor(elapsed / 60)).padStart(2, '0') + ':' + String(Math.floor(elapsed % 60)).padStart(2, '0');
   }
-  const body = el('log-body');
   const entry = document.createElement('div');
   entry.className = 'log-entry';
   entry.innerHTML = `<span class="log-time">${time}</span><span class="log-topic">${topic}</span><span>${message}</span>`;
-  body.prepend(entry);
-  const badge = el('log-badge');
-  badge.style.display = 'inline-grid';
-  badge.textContent = state.eventLog.length;
+  el('log-body').prepend(entry);
 }
 
 function onKPIUpdate() {
@@ -135,49 +95,32 @@ function onKPIUpdate() {
 
 function onHudUpdate() {
   let g = 0, y = 0, r = 0;
-  state.stations.forEach(s => {
-    if (s.status === 'green') g++;
-    else if (s.status === 'yellow') y++;
-    else r++;
-  });
+  state.stations.forEach(s => { if (s.status === 'green') g++; else if (s.status === 'yellow') y++; else r++; });
   el('hud-online').textContent = g;
   el('hud-warning').textContent = y;
   el('hud-down').textContent = r;
   el('deck-count').textContent = state.chaosDeck.length;
 }
 
-function onTimerUpdate(str) {
-  el('timer-display').textContent = str;
-}
+function onTimerUpdate(str) { el('timer-display').textContent = str; }
 
 function renderChaosCard(card) {
-  const slot = el('chaos-card-slot');
-  const sev = card.severity === 'danger' ? '' : card.severity === 'warn' ? 'warn' : 'info';
-  slot.innerHTML = `
-    <div class="chaos-card ${sev}">
+  el('chaos-card-slot').innerHTML = `
+    <div class="chaos-card severity-${card.severity}">
       <div class="card-title">${card.title}</div>
       <div class="card-desc">${card.desc}</div>
-      <div style="font-size:var(--fs-xs);color:var(--fg-3);">Agents: ${card.agents.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(', ')}</div>
+      <div style="font-size:0.6875rem;color:var(--fg-d);margin-top:8px;">Agents: ${card.agents.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(', ')}</div>
     </div>`;
 }
 
 function renderProposals(proposals) {
   el('proposals-section').style.display = 'block';
   el('proposals-slot').innerHTML = proposals.map((p, i) => `
-    <div class="agent-proposal" onclick="approveProposal(${i})">
-      <div class="agent-name">${p.agentId} Agent</div>
-      <div class="agent-action">${p.action}</div>
-      <div class="agent-impact">
-        ${(p.tags || []).map(t => {
-          const cls = t.startsWith('+') && !t.includes('$') ? 'positive' : t.startsWith('-') && !t.includes('$') ? 'negative' : 'neutral';
-          return `<span class="impact-tag ${cls}">${t}</span>`;
-        }).join('')}
-      </div>
+    <div class="proposal" onclick="approveProposal(${i})">
+      <div class="agent">${p.agentId}</div>
+      <div class="action">${p.action}</div>
+      <div class="tags">${(p.tags || []).map(t => `<span class="tag">${t}</span>`).join('')}</div>
     </div>`).join('');
-}
-
-function dismissProposalsUI() {
-  el('proposals-section').style.display = 'none';
 }
 
 function onGameOver({ grade, title, score }) {
@@ -186,18 +129,17 @@ function onGameOver({ grade, title, score }) {
   el('final-grade').textContent = grade;
   el('final-title').textContent = title;
   const sc = state.scenario;
-  const unitLabel = sc?.unitNamePlural || 'Units';
+  const unit = sc?.unitNamePlural || 'units';
   el('final-stats').innerHTML = `
-    <div class="final-stat"><div class="val">${Math.floor(state.unitsProduced)}</div><div class="lbl">${unitLabel}</div></div>
+    <div class="final-stat"><div class="val">${Math.floor(state.unitsProduced)}</div><div class="lbl">${unit}</div></div>
     <div class="final-stat"><div class="val">${Math.round(state.otif)}%</div><div class="lbl">OTIF</div></div>
     <div class="final-stat"><div class="val">$${Math.round(state.margin).toLocaleString()}</div><div class="lbl">Margin</div></div>
     <div class="final-stat"><div class="val">${state.defectRate.toFixed(1)}%</div><div class="lbl">Defects</div></div>
-    <div class="final-stat"><div class="val">${state.energy.toFixed(1)}</div><div class="lbl">kWh/unit</div></div>
+    <div class="final-stat"><div class="val">${state.energy.toFixed(1)}</div><div class="lbl">kWh</div></div>
     <div class="final-stat"><div class="val">${Math.round(score)}</div><div class="lbl">Score</div></div>`;
   el('gameover-screen').classList.add('visible');
 }
 
-// ─── Toast ──────────────────────────────────
 function showToast(msg) {
   const t = document.createElement('div');
   t.className = 'toast';
@@ -206,40 +148,24 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 3000);
 }
 
-// ─── Share ──────────────────────────────────
 function shareScore() {
   const sc = state.scenario;
-  const name = sc?.tagline || 'Dark Shift';
-  const text = `I scored ${Math.round(state.score)} on ${name} (Grade: ${el('final-grade').textContent})! ${Math.floor(state.unitsProduced)} ${sc?.unitNamePlural || 'units'} produced, ${Math.round(state.otif)}% OTIF. #SolaceAgentMesh #DarkShift`;
-  if (navigator.share) {
-    navigator.share({ text }).catch(() => {});
-  } else {
-    navigator.clipboard.writeText(text).then(() => showToast('Score copied to clipboard!'));
-  }
+  const text = `Dark Shift: ${Math.round(state.score)} pts (${el('final-grade').textContent}) — ${Math.floor(state.unitsProduced)} ${sc?.unitNamePlural || 'units'}, ${Math.round(state.otif)}% OTIF`;
+  navigator.clipboard.writeText(text).then(() => showToast('Copied!'));
 }
 
-// ─── Keyboard ───────────────────────────────
 function onKeyDown(e) {
-  if (!state.running) {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startGame(); }
-    return;
-  }
+  if (!state.running) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startGame(); } return; }
   switch (e.key) {
     case 'c': case 'C': engineDrawCard(); break;
     case 'm': case 'M': toggleMesh(); break;
     case 'l': case 'L': toggleLog(); break;
-    case '1': engineSetPriority('speed'); break;
-    case '2': engineSetPriority('margin'); break;
-    case '3': engineSetPriority('quality'); break;
-    case '4': engineSetPriority('green'); break;
+    case '1': window.setPriority('speed'); break;
+    case '2': window.setPriority('margin'); break;
+    case '3': window.setPriority('quality'); break;
+    case '4': window.setPriority('green'); break;
     case 'a': case 'A': if (state.proposals.length) engineApproveAll(); break;
   }
 }
 
-// ─── Resize ─────────────────────────────────
-window.addEventListener('resize', () => {
-  if (state.running) {
-    resizeCanvas();
-    reinitAMRs();
-  }
-});
+window.addEventListener('resize', () => { if (state.running) { resizeCanvas(); reinitAMRs(); } });

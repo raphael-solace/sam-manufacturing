@@ -99,17 +99,6 @@ function drawStation(station, time) {
   const size = 36;
   const color = STATUS_COLORS[station.status];
 
-  // Glow
-  if (station.glow > 0) {
-    ctx.save();
-    ctx.globalAlpha = station.glow * 0.3 * (0.5 + 0.5 * Math.sin(time * 4));
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(x, y, size + 20, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
   const topH = size * 0.4;
   const bodyH = size * 0.6;
 
@@ -201,15 +190,12 @@ function updateUnits(dt) {
 
 function drawUnits() {
   state.bikes.forEach(b => {
-    ctx.save();
-    ctx.globalAlpha = 0.9;
     ctx.fillStyle = b.color;
-    ctx.shadowColor = b.color;
-    ctx.shadowBlur = 8;
+    ctx.globalAlpha = 0.85;
     ctx.beginPath();
     ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
+    ctx.globalAlpha = 1;
   });
 }
 
@@ -258,9 +244,7 @@ function drawAMRs() {
   state.amrs.forEach(amr => {
     ctx.save();
     ctx.fillStyle = '#3b82f6';
-    ctx.globalAlpha = 0.8;
-    ctx.shadowColor = '#3b82f6';
-    ctx.shadowBlur = 6;
+    ctx.globalAlpha = 0.7;
     const angle = Math.atan2(amr.ty - amr.y, amr.tx - amr.x);
     ctx.translate(amr.x, amr.y);
     ctx.rotate(angle);
@@ -307,15 +291,12 @@ function updateParticles(dt) {
 
 function drawParticles() {
   state.particles.forEach(p => {
-    ctx.save();
-    ctx.globalAlpha = p.life;
     ctx.fillStyle = p.color;
-    ctx.shadowColor = p.color;
-    ctx.shadowBlur = 4;
+    ctx.globalAlpha = p.life;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
+    ctx.globalAlpha = 1;
   });
 }
 
